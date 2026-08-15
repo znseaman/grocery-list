@@ -87,33 +87,38 @@ function App() {
           <h2>Grocery List</h2>
         </div>
         <div className="grid-3x4">
-          {AISLES.map((section, index) => (
-            <div key={index} className="grid-cell">
-              <h2>{section}</h2>
-              <ul>
-                {items.reduce((acc, curr) => {
-                  if (curr.section === section) {
-                    acc.push(curr)
-                  }
-                  return acc
-                }, [] as Item[]).sort((a, b) => Number(a.inCart) - Number(b.inCart)).map((item) => (
-                  <li key={item.name + item.id}>
-                    <label htmlFor={item.name + item.id} style={{textDecoration: item.inCart ? "line-through" : "none" }}>
-                      <input
-                        type="checkbox"
-                        name="inCart"
-                        id={item.name + item.id}
-                        checked={item.inCart}
-                        onChange={() => handleChangeChecked(item)}
-                      />
-                      {item.name}
-                    </label>
-                    <button onClick={() => handleDelete(item.id)}>Remove</button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {AISLES.map((section, index) => {
+            const sectionItems = items
+              .filter((curr) => curr.section === section)
+              .sort((a, b) => Number(a.inCart) - Number(b.inCart));
+
+            return (
+              <div
+                key={index}
+                className="grid-cell"
+                style={{ "--item-count": sectionItems.length } as React.CSSProperties}
+              >
+                <h2 className="underline">{section}</h2>
+                <ul>
+                  {sectionItems.map((item) => (
+                    <li key={item.name + item.id}>
+                      <label htmlFor={item.name + item.id} style={{textDecoration: item.inCart ? "line-through" : "none" }}>
+                        <input
+                          type="checkbox"
+                          name="inCart"
+                          id={item.name + item.id}
+                          checked={item.inCart}
+                          onChange={() => handleChangeChecked(item)}
+                        />
+                        {item.name}
+                      </label>
+                      <button className="bg-red-500 text-white rounded-md px-4 py-1" onClick={() => handleDelete(item.id)}>Remove</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -123,7 +128,7 @@ function App() {
         <div id="docs">
           <form onSubmit={handleFormSubmit}>
             <label htmlFor={item.name + item.id}>
-              Item: <input type="text" name="item" id={item.name + item.id} onChange={handleInput} value={item.name} />
+              Item: <input type="text" name="item" id={item.name + item.id} className="border-2 border-gray-700 focus:border-pink-600" onChange={handleInput} value={item.name} />
             </label>
             
             <select name="section" value={item.section} onChange={handleChange}>
@@ -131,17 +136,17 @@ function App() {
                 <option key={section} value={section}>{section}</option>
               ))}
             </select>
-            <button type="submit">Add</button>
+            <button className="bg-blue-500 text-white rounded-md px-4 py-2" type="submit">Add</button>
           </form>
           <form className="danger-zone" onSubmit={handleRemoveAllItems}>
-            <button type="submit">Remove All Items</button>
+            <button className="bg-red-500 text-white rounded-md px-4 py-2" type="submit">Remove All Items</button>
           </form>
         </div>
         <div id="social">
           <p>Built by Zach Seaman</p>
           <ul>
             <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
+              <a href="https://github.com/znseaman" target="_blank">
                 <svg
                   className="button-icon"
                   role="presentation"
@@ -150,18 +155,6 @@ function App() {
                   <use href="/icons.svg#github-icon"></use>
                 </svg>
                 GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
               </a>
             </li>
           </ul>
