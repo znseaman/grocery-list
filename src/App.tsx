@@ -133,7 +133,7 @@ function App() {
             </select>
             <button type="submit">Add</button>
           </form>
-          <form onSubmit={handleRemoveAllItems}>
+          <form className="danger-zone" onSubmit={handleRemoveAllItems}>
             <button type="submit">Remove All Items</button>
           </form>
         </div>
