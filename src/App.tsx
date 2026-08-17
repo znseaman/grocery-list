@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import './App.css';
+import {DragDropProvider} from '@dnd-kit/react';
+import Draggable from './Draggable';
+import Droppable from './Droppable';
+import Sortable from './Sortable';
 
 type Item = {
   id: number;
@@ -8,7 +12,7 @@ type Item = {
   inCart: boolean;
 };
 
-const defaultItem = {id: 1, name: "", section: "Fresh Produce", inCart: false};
+const defaultItem = {id: Date.now(), name: "", section: "", inCart: false};
 
 const AISLES = [
   "Bread & Bakery",
@@ -33,6 +37,7 @@ function App() {
   const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     setItem({
       ...item,
+      id: Date.now(),
       name: event.target.value,
     });
   }
@@ -40,6 +45,7 @@ function App() {
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setItem({
       ...item,
+      id: Date.now(),
       section: event.target.value
     });
   }
@@ -49,36 +55,45 @@ function App() {
 
     if (item.name.trim().length === 0) return;
 
-    setItem({
+    const newItem = {
       ...item,
-      id: Date.now(),
-    });
+      id: Date.now()
+    } as Item;
     
-    setItems([item, ...items]);
-    localStorage.setItem("grocery-list-items", JSON.stringify([item, ...items]));
-    setItem({...item, name: ""});
+    setItems(prevItems => {
+      const newItems = [newItem, ...prevItems]
+      localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
+      return newItems
+    });
+    setItem({...defaultItem});
   }
 
-  const handleChangeChecked = (item: Item) => {
-    const index = items.indexOf(item);
-    item.inCart = !item.inCart;
-    items.splice(index, 1, item);
-    setItems([...items]);
+  const handleChangeChecked = (id: string) => {
+    const index = items.findIndex((item) => `${item.id}-${item.name}` === id);
+    setItems(prevItems => prevItems.map((item, idx) =>
+      idx === index ? { ...item, inCart: !item.inCart} : item
+    ));
     localStorage.setItem("grocery-list-items", JSON.stringify(items));
   }
 
-  const handleDelete = (id: number) => {
-    const index = items.findIndex((item) => item.id === id);
-    items.splice(index, 1);
-    setItems([...items]);
-    localStorage.setItem("grocery-list-items", JSON.stringify([...items]));
+  const handleDelete = (id: string) => {
+    setItems(prevItems => {
+      const newItems = prevItems.filter(item => `${item.id}-${item.name}` !== id)
+      localStorage.setItem("grocery-list-items", JSON.stringify([...newItems]));
+      return newItems
+    });
   }
 
   const handleRemoveAllItems = (event: React.FormEvent) => {
     event.preventDefault();
-    setItems([]);
-    localStorage.setItem("grocery-list-items", JSON.stringify([]));
+    setItems(_ => {
+      const newItems: Item[] = []
+      localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
+      return newItems
+    });
   }
+
+  const unsectionedItems = items.filter((curr) => !curr.section);
 
   return (
     <>
@@ -86,54 +101,16 @@ function App() {
         <div className="hero">
           <h2>Grocery List</h2>
         </div>
-        <div className="grid-3x4">
-          {AISLES.map((section, index) => {
-            const sectionItems = items
-              .filter((curr) => curr.section === section)
-              .sort((a, b) => Number(a.inCart) - Number(b.inCart));
-
-            return (
-              <div
-                key={index}
-                className="grid-cell"
-                style={{ "--item-count": sectionItems.length } as React.CSSProperties}
-              >
-                <h2 className="underline">{section}</h2>
-                <ul>
-                  {sectionItems.map((item) => (
-                    <li key={item.name + item.id}>
-                      <label htmlFor={item.name + item.id} style={{textDecoration: item.inCart ? "line-through" : "none" }}>
-                        <input
-                          type="checkbox"
-                          name="inCart"
-                          id={item.name + item.id}
-                          checked={item.inCart}
-                          onChange={() => handleChangeChecked(item)}
-                        />
-                        {item.name}
-                      </label>
-                      <button className="bg-red-500 text-white rounded-md px-4 py-1" onClick={() => handleDelete(item.id)}>Remove</button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
         <div id="docs">
           <form onSubmit={handleFormSubmit}>
             <label htmlFor={item.name + item.id}>
               Item: <input type="text" name="item" id={item.name + item.id} className="border-2 border-gray-700 focus:border-pink-600" onChange={handleInput} value={item.name} />
             </label>
             
-            <select name="section" value={item.section} onChange={handleChange}>
-              {AISLES.map((section) => (
-                <option key={section} value={section}>{section}</option>
+            <select name="section" defaultValue="" onChange={handleChange}>
+              <option key="-" value="">Select A Section</option>
+              {AISLES.map((section, index) => (
+                <option key={section + index} value={section}>{section}</option>
               ))}
             </select>
             <button className="bg-blue-500 text-white rounded-md px-4 py-2" type="submit">Add</button>
@@ -142,6 +119,51 @@ function App() {
             <button className="bg-red-500 text-white rounded-md px-4 py-2" type="submit">Remove All Items</button>
           </form>
         </div>
+        <DragDropProvider
+          onDragEnd={(event) => {
+            if (event.canceled) return;
+            const dropSection = event.operation.target?.id
+
+            const itemId = event.operation.source?.id
+            const itemIndex = items.findIndex((item) => `${item.id}-${item.name}` === itemId)
+
+            setItems(prevItems => {
+              const newItems = prevItems.map((item, idx) =>
+                idx === itemIndex ? { ...item, section: !AISLES.includes(dropSection as string) ? "" : dropSection} : item
+              );
+              localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
+              return newItems as Item[]
+            })
+          }}
+        >
+          <Droppable key={""} id={""} section={""} itemCount={unsectionedItems.length}>
+            <ul className="list">
+            {unsectionedItems.map((item, index) =>
+              <Sortable key={item.id + "-" + item.name} id={item.id + "-" + item.name} name={item.name} index={index} />
+            )}
+          </ul>
+          </Droppable>
+          {AISLES.map((section, index) => {
+            const sectionItems = items
+              .filter((curr) => curr.section === section)
+              .sort((a, b) => Number(a.inCart) - Number(b.inCart));
+
+            return (
+              <Droppable key={index + "-" + section} id={section} section={section} itemCount={sectionItems.length}>
+                <ul className="list">
+                  {sectionItems.map((item, index) =>
+                    <Draggable key={item.id + "-" + item.name} id={item.id + "-" + item.name} index={index} name={item.name} inCart={item.inCart} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Draggable>
+                  )}
+                </ul>
+              </Droppable>
+            );
+          })}
+        </DragDropProvider>
+      </section>
+
+      <div className="ticks"></div>
+
+      <section id="next-steps">
         <div id="social">
           <p>Built by Zach Seaman</p>
           <ul>
