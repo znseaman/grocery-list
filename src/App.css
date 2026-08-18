@@ -335,7 +335,7 @@
   pointer-events: none;
 }
 
-.droppable.active, {
+.droppable.active {
   background-color: #484848;
   box-shadow: inset #1eb99d 0 0 0 2px, rgba(0, 0, 0, 0.12) 20px 14px 24px;
 }
