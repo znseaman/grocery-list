@@ -1,13 +1,22 @@
 import {useRef, useState} from 'react';
-import {useDraggable} from '@dnd-kit/react';
+import {useSortable} from '@dnd-kit/react/sortable';
 
-export default function Draggable({id, name, section, inCart, handleChangeChecked, handleDelete}: {id: string, index: number, name: string, section: string, inCart: boolean, handleChangeChecked: (id: string, section: string)=>void; handleDelete: (id: string, section: string)=>void}) {
+export default function Item({id, index, name, section, inCart, handleChangeChecked, handleDelete}: {id: string, index: number, name: string, section: string, inCart: boolean, handleChangeChecked: (id: string, section: string)=>void; handleDelete: (id: string, section: string)=>void}) {
   const [element, _] = useState<Element | null>(null);
   const handleRef = useRef<HTMLButtonElement | null>(null);
-  const {ref} = useDraggable({id, element, handle: handleRef});
+  const {ref, isDragging} = useSortable({
+    id,
+    index,
+    type: 'item',
+    accept: 'item',
+    group: section,
+    element,
+    handle: handleRef,
+    target: element
+  });
 
   return (
-    <li ref={ref} className="item" key={id + name}>
+    <li ref={ref} className="item" key={id + name} data-dragging={isDragging}>
       <label htmlFor={id + "-" + name} style={{textDecoration: inCart ? "line-through" : "none" }}>
         <input
           type="checkbox"
