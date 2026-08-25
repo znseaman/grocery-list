@@ -19,7 +19,9 @@ export default function Section({id, section, index, itemCount = 0, children}: {
       style={{ "--item-count": itemCount } as React.CSSProperties}
     >
       <h2 className="underline">{section == "None" ? "" : section}</h2>
-      {children}
+      <ul className="list">
+        {children}
+      </ul>
     </div>
   );
 }

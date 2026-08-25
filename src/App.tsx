@@ -35,7 +35,7 @@ function App() {
   const sectionsFromLocalStorage: string[] = JSON.parse(localStorage.getItem("grocery-list-sections") ?? `${JSON.stringify(AISLES)}`);
 
   const rawItems: Item[] = []
-  const itemObject: Record<string, Item[]> = {}
+  const layoutObject: Record<string, string[]> = {}
   for (const section of sectionsFromLocalStorage) {
     if (!Array.isArray(itemsFromLocalStorage)) continue
     const sectionItems = itemsFromLocalStorage.filter((item) => {
@@ -43,11 +43,12 @@ function App() {
       if (item.section === "" && section === "None") return true
       return false
     })
+    layoutObject[section] = sectionItems.map((item) => `${item.id}-${item.name}`)
     rawItems.push(...sectionItems)
-    itemObject[section] = sectionItems || []
   }
   
-  const [items, setItems] = useState<Record<string, Item[]>>({...itemObject});
+  const [layout, setLayout] = useState<Record<string, string[]>>({...layoutObject});
+  const [renderedItems, setRenderedItems] = useState<Item[]>(rawItems)
   const [columnOrder, setColumnOrder] = useState(() => [...sectionsFromLocalStorage]);
 
   const [item, setItem] = useState<Item>({...defaultItem});
@@ -77,76 +78,68 @@ function App() {
       ...item,
       id: Date.now()
     } as Item;
-    
-    setItems(prevItems => {
-      const newItems = {
-        ...prevItems,
-        [newItem.section]: [newItem, ...prevItems[newItem.section]]
-      }
-      const allItems: Item[] = []
-      for (const section of Object.keys(newItems)) {
-        allItems.push(...newItems[section])
-      }
-      localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-      return newItems
+
+    setLayout(prevLayout => {
+      const newLayout = {
+        ...prevLayout,
+        [newItem.section]: [...prevLayout[newItem.section], `${newItem.id}-${newItem.name}`]
+      };
+      return newLayout
+    });
+
+    setRenderedItems(prevRenderedItems => {
+      const newRenderedItems = [...prevRenderedItems, newItem]
+      localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
+      return newRenderedItems
     });
     setItem({...defaultItem});
   }
 
-  const handleChangeChecked = (id: string, section: string) => {
-    const index = items[section].findIndex((item) => `${item.id}-${item.name}` === id);
-    setItems(prevItems => {
-      const updatedItems = prevItems[section].map((item, idx) =>
+  const handleChangeChecked = (id: string) => {
+    const index = renderedItems.findIndex((item) => `${item.id}-${item.name}` === id);
+    setRenderedItems(prevRenderedItems => {
+      const updatedItems = prevRenderedItems.map((item, idx) =>
         idx === index ? { ...item, inCart: !item.inCart} : item
       );
 
-      const newItems = {
-        ...prevItems,
-        [section] : [...updatedItems]
-      };
+      localStorage.setItem("grocery-list-items", JSON.stringify(updatedItems));
 
-      const allItems: Item[] = []
-      for (const section of Object.keys(newItems)) {
-        allItems.push(...newItems[section])
-      }
-      localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-
-      return newItems;
+      return updatedItems;
     });
   }
 
   const handleDelete = (id: string, section: string) => {
-    setItems(prevItems => {
-      const updatedItems = prevItems[section].filter(item => `${item.id}-${item.name}` !== id)
+    setRenderedItems(prevRenderedItems => {
+      const updatedItems = prevRenderedItems.filter(item => `${item.id}-${item.name}` !== id);
+      localStorage.setItem("grocery-list-items", JSON.stringify(updatedItems));
+      return updatedItems;
+    });
 
-      const newItems = {
-        ...prevItems,
+    setLayout(prevLayout => {
+      const updatedItems = prevLayout[section].filter(itemId => itemId !== id);
+      const newLayout = {
+        ...prevLayout,
         [section] : [...updatedItems]
       };
-
-      const allItems: Item[] = []
-      for (const section of Object.keys(newItems)) {
-        allItems.push(...newItems[section])
-      }
-
-      localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-      return newItems
+      return newLayout;
     });
   }
 
   const handleRemoveAllItems = (event: React.FormEvent) => {
     event.preventDefault();
-    setItems(prevItems => {
 
-      const newItems = {...prevItems}
-      for (const section of Object.keys(newItems)) {
-        newItems[section] = []
-      }
-
-      const allItems: Item[] = []
+    setRenderedItems(_ => {
+      const allItems: Item[] = [];
       localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
+      return allItems;
+    });
 
-      return newItems
+    setLayout(prevLayout => {
+      const newLayout: Record<string, string[]> = {};
+      for (const section of Object.keys(prevLayout)) {
+        newLayout[section] = [];
+      }
+      return newLayout;
     });
   }
 
@@ -162,7 +155,7 @@ function App() {
               Item: <input type="text" name="item" id={item.name + item.id} className="border-2 border-gray-700 focus:border-pink-600" onChange={handleInput} value={item.name} />
             </label>
             
-            <select name="section" defaultValue="" onChange={handleChange}>
+            <select name="section" defaultValue={item.section} onChange={handleChange}>
               {columnOrder.map((section, index) => (
                 <option key={section + index} value={section}>{section}</option>
               ))}
@@ -179,14 +172,14 @@ function App() {
 
               if (source?.type === 'column') return;
 
-              setItems((prevItems) => {
-                const newItems = move(prevItems, event)
-                return newItems
+              setLayout((prevLayout) => {
+                const newLayout = move(prevLayout, event)
+                return newLayout
               });
           }}
 
           onDragEnd={(event) => {
-            const {source, target} = event.operation;
+            const {source} = event.operation;
 
             if (event.canceled) return;
 
@@ -200,56 +193,34 @@ function App() {
             }
 
             if (source?.type === 'item') {
-              const itemId = source?.id
-              const dropSection = target?.id || "None"
-
-              setItems(prevItems => {
-                let itemIndex = -1
-                let itemOriginSection = ""
-                let originalItem: Item = {} as Item
-                for (const section of Object.keys(items)) {
-                  const idx = items[section].findIndex((item) => `${item.id}-${item.name}` === itemId);
-                  if (idx !== -1) {
-                    itemOriginSection = section
-                    itemIndex = idx
-                    originalItem = items[section][idx]
-                    break;
+              setLayout((prevLayout) => {
+                const allItems: Item[] = [];
+                for (const section of Object.keys(prevLayout)) {
+                  for (const itemId of prevLayout[section]) {
+                    const individualItem = renderedItems.find((item) => `${item.id}-${item.name}` === itemId)
+                    if (individualItem) allItems.push({...individualItem, section})
                   }
                 }
-                
-                if (itemOriginSection === dropSection || dropSection == `${item.id}-${item.name}` || !Array.isArray(prevItems[dropSection])) return prevItems;
 
-                const updatedOriginItems = prevItems[itemOriginSection].filter((_, idx) => idx !== itemIndex);
+                setRenderedItems(_ => {
+                  localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
+                  return allItems;
+                });
 
-                const newItems = {
-                  ...prevItems,
-                  [itemOriginSection] : [...updatedOriginItems],
-                  [dropSection] : [{...originalItem, section: dropSection}, ...prevItems[dropSection]]
-                } as Record<string, Item[]>;
-
-                const newestItems = move(newItems, event);
-
-                const allItems: Item[] = []
-                for (const section of Object.keys(newestItems)) {
-                  allItems.push(...newestItems[section])
-                }
-
-                localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-                return newestItems;
-              })
+                return prevLayout;
+              });
               return;
             }
           }}
         >
           {columnOrder.map((section, sectionIdx) => {
-            const sectionItems = items[section];
+            const sectionItems = layout[section];
             return (
-              <Section key={sectionIdx + "-" + section} id={section} section={section} index={sectionIdx} itemCount={0}>
-                <ul className="list">
-                  {sectionItems.map((item, index) =>
-                    <Item key={item.id + "-" + item.name} id={item.id + "-" + item.name} index={index} name={item.name} inCart={item.inCart} section={item.section} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Item>
-                  )}
-                </ul>
+              <Section key={sectionIdx + "-" + section} id={section} section={section} index={sectionIdx} itemCount={sectionItems.length}>
+                {sectionItems.map((itemKey, index) => {
+                  let [rawItem] = renderedItems.filter((itemObject) => `${itemObject.id}-${itemObject.name}` === itemKey)
+                  return <Item key={rawItem.id + "-" + rawItem.name} id={rawItem.id + "-" + rawItem.name} index={index} name={rawItem.name} inCart={rawItem.inCart} section={rawItem.section} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Item>
+                })}
               </Section>
             );
           })}

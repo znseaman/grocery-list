@@ -350,6 +350,7 @@
 
 .droppable .list {
   flex-direction: column;
+  /* background-color: blueviolet; */
 }
 
 .drop-layout {
