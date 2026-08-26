@@ -167,15 +167,24 @@ function App() {
           </form>
         </div>
         <DragDropProvider
-            onDragOver={(event) => {
-              const {source} = event.operation;
+          onBeforeDragStart={(event) => {
+            const {source} = event.operation;
 
-              if (source?.type === 'column') return;
+            // Prevent the "None" section from being draggable
+            if (source?.type === 'column' && source?.id === "None") {
+              event.preventDefault();
+            }
+          }}
 
-              setLayout((prevLayout) => {
-                const newLayout = move(prevLayout, event)
-                return newLayout
-              });
+          onDragOver={(event) => {
+            const {source} = event.operation;
+
+            if (source?.type === 'column') return;
+
+            setLayout((prevLayout) => {
+              const newLayout = move(prevLayout, event)
+              return newLayout
+            });
           }}
 
           onDragEnd={(event) => {
