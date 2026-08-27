@@ -79,6 +79,11 @@
   gap: 12px;
 }
 
+.grid-3x4 .break-column {
+  flex-basis: 100%;
+  width: 0;
+}
+
 .grid-cell {
   box-sizing: border-box;
   flex: 0 0 calc((100% - 24px) / 3);
@@ -306,11 +311,9 @@
 .droppable {
   display: flex;
   flex-direction: column;
-  gap: 20px;
   align-items: center;
   justify-content: flex-start;
   position: relative;
-  padding: 20px 0;
   text-align: center;
   border-radius: 10px;
   max-width: 340px;
@@ -351,6 +354,26 @@
 .droppable .list {
   flex-direction: column;
   /* background-color: blueviolet; */
+}
+
+.section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: self-start;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 20px;
+  padding-top: 20px;
+}
+
+.section > .handle {
+  align-self: center;
+  height: 100%;
+  width: 50px;
 }
 
 .drop-layout {
