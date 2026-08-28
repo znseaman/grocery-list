@@ -92,7 +92,7 @@ function App() {
       localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
       return newRenderedItems
     });
-    setItem({...defaultItem});
+    setItem({...newItem, name: ""});
   }
 
   const handleChangeChecked = (id: string) => {
