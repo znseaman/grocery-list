@@ -359,7 +359,7 @@
 .section {
   display: grid;
   grid-template-columns: 1fr auto;
-  align-items: self-start;
+  align-items: stretch;
 }
 
 .section-content {
@@ -368,12 +368,16 @@
   gap: 10px;
   padding-left: 20px;
   padding-top: 20px;
+  min-width: 0;
 }
 
 .section > .handle {
-  align-self: center;
-  height: 100%;
   width: 50px;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 44px;
+  }
 }
 
 .drop-layout {
@@ -420,7 +424,6 @@
   font-family: system-ui, sans-serif;
   width: 100%;
   max-width: 300px;
-  white-space: nowrap;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -430,6 +433,16 @@
 
 .item:not(:has(.handle)) {
   cursor: grab;
+}
+
+.item label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: break-word;
+}
+
+.item > button {
+  flex-shrink: 0;
 }
 
 .item[aria-grabbed="true"],
