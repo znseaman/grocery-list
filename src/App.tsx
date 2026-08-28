@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './App.css';
-import {DragDropProvider} from '@dnd-kit/react';
+import {DragDropProvider, type BeforeDragStartEvent, type DragEndEvent, type DragOverEvent} from '@dnd-kit/react';
 import {move} from '@dnd-kit/helpers';
 import Item from './Item';
 import Section from './Section';
@@ -143,6 +143,85 @@ function App() {
     });
   }
 
+  const handleOnBeforeDragStart = (event: BeforeDragStartEvent) => {
+    const {source} = event.operation;
+    // Prevent the "None" section from being draggable
+    if (source?.type === 'column' && source?.id === "None") {
+      event.preventDefault();
+    }
+  }
+
+  const handleOnDragOver = (event: DragOverEvent) => {
+    const {source, target} = event.operation;
+
+    const targetIndex = columnOrder.findIndex((column) => column === target?.id)
+    const sourceIndex = columnOrder.findIndex((column) => column === source?.id)
+    const restrictedIndex = 0;
+
+    if (targetIndex <= restrictedIndex && sourceIndex > restrictedIndex) {
+      // Prevent the optimistic layout sort behavior
+      event.preventDefault(); 
+    }
+
+    if (source?.type === 'column') {
+      return;
+    } 
+
+    setLayout((prevLayout) => {
+      const newLayout = move(prevLayout, event)
+      return newLayout
+    });
+  }
+
+  const handleOnDragEnd = (event: DragEndEvent) => {
+    const {source, target} = event.operation;
+
+    if (event.canceled) return;
+
+    if (source?.type === 'column') {
+      const overIndex = columnOrder.findIndex((column) => column === target?.id)
+      const restrictedIndex = 0;
+
+      // Guard rail: enforce the rule in final state update
+      if (overIndex < restrictedIndex) return;
+
+      if (source?.id !== target?.id) {
+        setColumnOrder((columns) => {
+          const newColumns = move(columns, event)
+          localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+          return newColumns
+        });
+      }
+
+      setColumnOrder((columns) => {
+        const newColumns = move(columns, event)
+        localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+        return newColumns
+      });
+      return;
+    }
+
+    if (source?.type === 'item') {
+      setLayout((prevLayout) => {
+        const allItems: Item[] = [];
+        for (const section of Object.keys(prevLayout)) {
+          for (const itemId of prevLayout[section]) {
+            const individualItem = renderedItems.find((item) => `${item.id}-${item.name}` === itemId)
+            if (individualItem) allItems.push({...individualItem, section})
+          }
+        }
+
+        setRenderedItems(_ => {
+          localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
+          return allItems;
+        });
+
+        return prevLayout;
+      });
+      return;
+    }
+  }
+
   return (
     <>
       <section id="center">
@@ -167,85 +246,9 @@ function App() {
           </form>
         </div>
         <DragDropProvider
-          onBeforeDragStart={(event) => {
-            const {source} = event.operation;
-
-            // Prevent the "None" section from being draggable
-            if (source?.type === 'column' && source?.id === "None") {
-              event.preventDefault();
-            }
-          }}
-
-          onDragOver={(event) => {
-            const {source, target} = event.operation;
-
-            const targetIndex = columnOrder.findIndex((column) => column === target?.id)
-            const sourceIndex = columnOrder.findIndex((column) => column === source?.id)
-            const restrictedIndex = 0;
-
-            if (targetIndex <= restrictedIndex && sourceIndex > restrictedIndex) {
-              // Prevent the optimistic layout sort behavior
-              event.preventDefault(); 
-            }
-
-            if (source?.type === 'column') {
-              return;
-            } 
-
-            setLayout((prevLayout) => {
-              const newLayout = move(prevLayout, event)
-              return newLayout
-            });
-          }}
-
-          onDragEnd={(event) => {
-            const {source, target} = event.operation;
-
-            if (event.canceled) return;
-
-            if (source?.type === 'column') {
-              const overIndex = columnOrder.findIndex((column) => column === target?.id)
-              const restrictedIndex = 0;
-
-              // Guard rail: enforce the rule in final state update
-              if (overIndex < restrictedIndex) return;
-
-              if (source?.id !== target?.id) {
-                setColumnOrder((columns) => {
-                  const newColumns = move(columns, event)
-                  localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
-                  return newColumns
-                });
-              }
-
-              setColumnOrder((columns) => {
-                const newColumns = move(columns, event)
-                localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
-                return newColumns
-              });
-              return;
-            }
-
-            if (source?.type === 'item') {
-              setLayout((prevLayout) => {
-                const allItems: Item[] = [];
-                for (const section of Object.keys(prevLayout)) {
-                  for (const itemId of prevLayout[section]) {
-                    const individualItem = renderedItems.find((item) => `${item.id}-${item.name}` === itemId)
-                    if (individualItem) allItems.push({...individualItem, section})
-                  }
-                }
-
-                setRenderedItems(_ => {
-                  localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-                  return allItems;
-                });
-
-                return prevLayout;
-              });
-              return;
-            }
-          }}
+          onBeforeDragStart={handleOnBeforeDragStart}
+          onDragOver={handleOnDragOver}
+          onDragEnd={handleOnDragEnd}
         >
           {columnOrder.map((section, sectionIdx) => {
             const sectionItems = layout[section];
