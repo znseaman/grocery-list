@@ -177,9 +177,20 @@ function App() {
           }}
 
           onDragOver={(event) => {
-            const {source} = event.operation;
+            const {source, target} = event.operation;
 
-            if (source?.type === 'column') return;
+            const targetIndex = columnOrder.findIndex((column) => column === target?.id)
+            const sourceIndex = columnOrder.findIndex((column) => column === source?.id)
+            const restrictedIndex = 0;
+
+            if (targetIndex <= restrictedIndex && sourceIndex > restrictedIndex) {
+              // Prevent the optimistic layout sort behavior
+              event.preventDefault(); 
+            }
+
+            if (source?.type === 'column') {
+              return;
+            } 
 
             setLayout((prevLayout) => {
               const newLayout = move(prevLayout, event)
@@ -188,11 +199,25 @@ function App() {
           }}
 
           onDragEnd={(event) => {
-            const {source} = event.operation;
+            const {source, target} = event.operation;
 
             if (event.canceled) return;
 
             if (source?.type === 'column') {
+              const overIndex = columnOrder.findIndex((column) => column === target?.id)
+              const restrictedIndex = 0;
+
+              // Guard rail: enforce the rule in final state update
+              if (overIndex < restrictedIndex) return;
+
+              if (source?.id !== target?.id) {
+                setColumnOrder((columns) => {
+                  const newColumns = move(columns, event)
+                  localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+                  return newColumns
+                });
+              }
+
               setColumnOrder((columns) => {
                 const newColumns = move(columns, event)
                 localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
