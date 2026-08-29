@@ -265,7 +265,7 @@
 
 .list {
   display: flex;
-flex-wrap: wrap;
+  flex-wrap: wrap;
   gap: 15px;
 }
 
@@ -291,11 +291,11 @@ flex-wrap: wrap;
 .droppable-row {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 10px;
   align-items: flex-start;
   justify-content: flex-start;
   position: relative;
-  padding-top: 20px;
+  padding-top: 0px;
   text-align: center;
   border-radius: 10px;
   max-height: 340px;
@@ -369,7 +369,14 @@ flex-wrap: wrap;
   gap: 10px;
   padding-left: 20px;
   padding-top: 20px;
+  padding-bottom: 20px;
   min-width: 0;
+}
+
+.droppable-row > .section-content {
+  padding-left: 20px;
+  padding-top: 0px;
+  padding-bottom: 0px;
 }
 
 .section > .handle {
