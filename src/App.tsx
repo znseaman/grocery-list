@@ -14,7 +14,7 @@ type Item = {
 
 const defaultItem = {id: Date.now(), name: "", section: "None", inCart: false};
 
-const AISLES = [
+const SECTIONS = [
   "None",
   "Bread & Bakery",
   "Fresh Produce",
@@ -32,7 +32,7 @@ const AISLES = [
 
 function App() {
   const itemsFromLocalStorage: Item[] = JSON.parse(localStorage.getItem("grocery-list-items") ?? "[]");
-  const sectionsFromLocalStorage: string[] = JSON.parse(localStorage.getItem("grocery-list-sections") ?? `${JSON.stringify(AISLES)}`);
+  const sectionsFromLocalStorage: string[] = JSON.parse(localStorage.getItem("grocery-list-sections") ?? `${JSON.stringify(SECTIONS)}`);
 
   const rawItems: Item[] = []
   const layoutObject: Record<string, string[]> = {}
@@ -167,6 +167,7 @@ function App() {
       return;
     } 
 
+    // Optimistically sort layout
     setLayout((prevLayout) => {
       const newLayout = move(prevLayout, event)
       return newLayout
@@ -202,22 +203,16 @@ function App() {
     }
 
     if (source?.type === 'item') {
-      setLayout((prevLayout) => {
-        const allItems: Item[] = [];
-        for (const section of Object.keys(prevLayout)) {
-          for (const itemId of prevLayout[section]) {
-            const individualItem = renderedItems.find((item) => `${item.id}-${item.name}` === itemId)
-            if (individualItem) allItems.push({...individualItem, section})
-          }
+      // Take what the optimistic layout is currently and save it to local storage
+      const newItems: Item[] = [];
+      for (const section of Object.keys(layout)) {
+        for (const itemId of layout[section]) {
+          const individualItem = renderedItems.find((item) => `${item.id}-${item.name}` === itemId)
+          if (individualItem) newItems.push({...individualItem, section})
         }
+      }
 
-        setRenderedItems(_ => {
-          localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
-          return allItems;
-        });
-
-        return prevLayout;
-      });
+      localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
       return;
     }
   }
@@ -256,7 +251,7 @@ function App() {
               <Section key={sectionIdx + "-" + section} id={section} section={section} index={sectionIdx} itemCount={sectionItems.length}>
                 {sectionItems.map((itemKey, index) => {
                   let [rawItem] = renderedItems.filter((itemObject) => `${itemObject.id}-${itemObject.name}` === itemKey)
-                  return <Item key={rawItem.id + "-" + rawItem.name} id={rawItem.id + "-" + rawItem.name} index={index} name={rawItem.name} inCart={rawItem.inCart} section={rawItem.section} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Item>
+                  return <Item key={rawItem.id + "-" + rawItem.name} id={rawItem.id + "-" + rawItem.name} index={index} name={rawItem.name} inCart={rawItem.inCart} section={section} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Item>
                 })}
               </Section>
             );

@@ -6,7 +6,7 @@ import clsx from 'clsx';
 export default function Section({id, section, index, itemCount = 0, children}: {id: string; section: string; index: number; itemCount?: number; children?: React.ReactNode}) {
   const [element, _] = useState<Element | null>(null);
   const handleRef = useRef<HTMLButtonElement | null>(null);
-  const {ref, isDropTarget} = useSortable({
+  const {ref, isDragging} = useSortable({
     id,
     index,
     type: 'column',
@@ -20,7 +20,7 @@ export default function Section({id, section, index, itemCount = 0, children}: {
   return (
     <div
       ref={ref}
-      className={clsx("section", "grid-3x4", section == "None" ? "droppable-row": "droppable", isDropTarget ? "active" : "")}
+      className={clsx("section", "grid-3x4", section == "None" ? "droppable-row": "droppable", isDragging ? "active" : "")}
       style={{ "--item-count": itemCount } as React.CSSProperties}
     >
       <div className="section-content">
