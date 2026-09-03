@@ -50,6 +50,7 @@ function App() {
   const [layout, setLayout] = useState<Record<string, string[]>>({...layoutObject});
   const [renderedItems, setRenderedItems] = useState<Item[]>(rawItems)
   const [columnOrder, setColumnOrder] = useState(() => [...sectionsFromLocalStorage]);
+  const [activeSection, setActiveSection] = useState("");
 
   const [item, setItem] = useState<Item>({...defaultItem});
 
@@ -79,7 +80,7 @@ function App() {
       id: Date.now()
     } as Item;
 
-    setLayout(prevLayout => {
+    setLayout((prevLayout) => {
       const newLayout = {
         ...prevLayout,
         [newItem.section]: [...prevLayout[newItem.section], `${newItem.id}-${newItem.name}`]
@@ -87,7 +88,7 @@ function App() {
       return newLayout
     });
 
-    setRenderedItems(prevRenderedItems => {
+    setRenderedItems((prevRenderedItems) => {
       const newRenderedItems = [...prevRenderedItems, newItem]
       localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
       return newRenderedItems
@@ -97,7 +98,7 @@ function App() {
 
   const handleChangeChecked = (id: string) => {
     const index = renderedItems.findIndex((item) => `${item.id}-${item.name}` === id);
-    setRenderedItems(prevRenderedItems => {
+    setRenderedItems((prevRenderedItems) => {
       const updatedItems = prevRenderedItems.map((item, idx) =>
         idx === index ? { ...item, inCart: !item.inCart} : item
       );
@@ -109,13 +110,13 @@ function App() {
   }
 
   const handleDelete = (id: string, section: string) => {
-    setRenderedItems(prevRenderedItems => {
+    setRenderedItems((prevRenderedItems) => {
       const updatedItems = prevRenderedItems.filter(item => `${item.id}-${item.name}` !== id);
       localStorage.setItem("grocery-list-items", JSON.stringify(updatedItems));
       return updatedItems;
     });
 
-    setLayout(prevLayout => {
+    setLayout((prevLayout) => {
       const updatedItems = prevLayout[section].filter(itemId => itemId !== id);
       const newLayout = {
         ...prevLayout,
@@ -125,21 +126,77 @@ function App() {
     });
   }
 
-  const handleRemoveAllItems = (event: React.FormEvent) => {
+  const handleRemoveAllItems = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
 
-    setRenderedItems(_ => {
+    setRenderedItems((_) => {
       const allItems: Item[] = [];
       localStorage.setItem("grocery-list-items", JSON.stringify(allItems));
       return allItems;
     });
 
-    setLayout(prevLayout => {
+    setLayout((prevLayout) => {
       const newLayout: Record<string, string[]> = {};
       for (const section of Object.keys(prevLayout)) {
         newLayout[section] = [];
       }
       return newLayout;
+    });
+  }
+
+  const handleRemoveAllSections = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    setLayout((prevLayout) => {
+      setColumnOrder((_) => {
+        const newColumns: string[] = ["None"];
+        localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+        return newColumns
+      });
+
+      const noneSection = "None";
+      const noneSectionItemIds: string[] = [];
+      for (const section of Object.keys(prevLayout)) {
+        for (const itemId of prevLayout[section]) {
+          noneSectionItemIds.push(itemId);
+        }
+      }
+
+      const newLayout: Record<string, string[]> = {
+        [noneSection]: [...noneSectionItemIds],
+      };
+
+      setRenderedItems((prevRenderedItems) => {
+        const newRenderedItems = prevRenderedItems.map((item) => {
+          return { ...item, section: noneSection }
+        });
+        localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
+        return newRenderedItems;
+      });
+
+      return newLayout;
+    });
+  }
+
+  const handleRevertSections = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    setLayout((_) => {
+      const newLayout: Record<string, string[]> = {};
+      for (const section of SECTIONS) {
+        const sectionItems = renderedItems.filter((item) => {
+          if (item.section === section) return true
+          if (item.section === "" && section === "None") return true
+          return false
+        })
+        newLayout[section] = sectionItems.map((item) => `${item.id}-${item.name}`);
+      }
+      return newLayout;
+    });
+
+    setColumnOrder((_) => {
+      localStorage.setItem("grocery-list-sections", JSON.stringify(SECTIONS));
+      return SECTIONS
     });
   }
 
@@ -166,6 +223,11 @@ function App() {
     if (source?.type === 'column') {
       return;
     } 
+
+    if (targetIndex !== -1) {
+      if (columnOrder[targetIndex] === activeSection) return;
+      setActiveSection(columnOrder[targetIndex]);
+    }
 
     // Optimistically sort layout
     setLayout((prevLayout) => {
@@ -212,16 +274,108 @@ function App() {
         }
       }
 
-      localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
-      return;
+      setRenderedItems((_) => {
+        localStorage.setItem("grocery-list-items", JSON.stringify(newItems));
+        return newItems;
+      });
+
+      setActiveSection("");
     }
+  }
+
+  const handleDeleteSection = (id: string, section: string) => {
+    setLayout((prevLayout) => {
+      setColumnOrder((columns) => {
+        const newColumns = columns.filter((column) => column !== section);
+        localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+        return newColumns
+      });
+
+      const updatedItems = prevLayout[section];
+      if (!Array.isArray(updatedItems)) return prevLayout;
+      delete prevLayout[section];
+      const newLayout = {
+        ...prevLayout,
+        ["None"]: [...updatedItems],
+      };
+
+      setRenderedItems((prevRenderedItems) => {
+        const newRenderedItems = prevRenderedItems.map((item) => {
+          return item.section === section ? {...item, section: "None"} : item
+        })
+        localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
+        return newRenderedItems
+      });
+
+      return newLayout;
+    });
+  }
+
+  const handleEditSection = (newSectionName: string, section: string) => {
+    // move items over to new section name
+
+    setLayout((prevLayout) => {
+      const updatedItems = prevLayout[section];
+      if (!Array.isArray(updatedItems)) return prevLayout;
+      delete prevLayout[section];
+      const newLayout = {
+        ...prevLayout,
+        [newSectionName]: [...updatedItems],
+      };
+
+      setColumnOrder((_) => {
+        const newColumns = columnOrder.map((column) => {
+          return column === section ? newSectionName : column
+        })
+        localStorage.setItem("grocery-list-sections", JSON.stringify(newColumns));
+        return newColumns
+      });
+
+      setRenderedItems((_) => {
+        const newRenderedItems = renderedItems.map((item) => {
+          return item.section === section ? {...item, section: newSectionName} : item
+        })
+        localStorage.setItem("grocery-list-items", JSON.stringify(newRenderedItems));
+        return newRenderedItems
+      })
+
+      return newLayout;
+    });
+  }
+
+  const handleAddSection = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    let numberOfNewSections = 0;
+    for (let section of columnOrder) {
+      if (section.startsWith("New Section")) numberOfNewSections++;
+    }
+    const newSectionName = "New Section" + (numberOfNewSections === 0 ? "" : ` ${numberOfNewSections + 1}`)
+
+    setLayout((prevLayout) => {
+      setColumnOrder((prevColumnOrder) => {
+        if (prevColumnOrder.includes(newSectionName)) return prevColumnOrder
+
+        const newColumnOrder = ["None", newSectionName, ...prevColumnOrder.slice(1, prevColumnOrder.length)]
+        localStorage.setItem("grocery-list-sections", JSON.stringify(newColumnOrder));
+
+        return newColumnOrder
+      });
+
+      const newLayout = {
+        ...prevLayout,
+        [newSectionName]: [],
+      };
+
+      return newLayout;
+    });
   }
 
   return (
     <>
       <section id="center">
         <div className="hero">
-          <h2>Grocery List</h2>
+          <h1>Grocery List</h1>
         </div>
         <div id="docs">
           <form onSubmit={handleFormSubmit}>
@@ -236,19 +390,27 @@ function App() {
             </select>
             <button className="bg-blue-500 text-white rounded-md px-4 py-2" type="submit">Add</button>
           </form>
-          <form className="danger-zone" onSubmit={handleRemoveAllItems}>
-            <button className="bg-red-500 text-white rounded-md px-4 py-2" type="submit">Remove All Items</button>
-          </form>
+          <button className="bg-red-500 text-white rounded-md px-4 py-2" onClick={handleRemoveAllItems}>Remove All Items</button>
+          <button className="bg-red-500 text-white rounded-md px-4 py-2" onClick={handleRemoveAllSections}>Remove All Sections</button>
+          <button className="bg-orange-600 text-white rounded-md px-4 py-2" onClick={handleRevertSections}>Revert To Default Sections</button>
         </div>
         <DragDropProvider
           onBeforeDragStart={handleOnBeforeDragStart}
           onDragOver={handleOnDragOver}
           onDragEnd={handleOnDragEnd}
         >
+          <button className="bg-blue-500 text-white rounded-md px-4 py-2" onClick={handleAddSection}>Add Section</button>
           {columnOrder.map((section, sectionIdx) => {
-            const sectionItems = layout[section];
+            const sectionItems = layout[columnOrder[sectionIdx]];
+            if (section === "None") {
+              sectionItems.push(
+                ...renderedItems
+                  .filter((item) => !Object.keys(layout).includes(item.section))
+                  .map((item) => `${item.id}-${item.name}`)
+              )
+            }
             return (
-              <Section key={sectionIdx + "-" + section} id={section} section={section} index={sectionIdx} itemCount={sectionItems.length}>
+              <Section key={sectionIdx + "-" + section} id={section} section={section} index={sectionIdx} itemCount={sectionItems.length} handleDelete={handleDeleteSection} handleEditSection={handleEditSection} active={activeSection === section}>
                 {sectionItems.map((itemKey, index) => {
                   let [rawItem] = renderedItems.filter((itemObject) => `${itemObject.id}-${itemObject.name}` === itemKey)
                   return <Item key={rawItem.id + "-" + rawItem.name} id={rawItem.id + "-" + rawItem.name} index={index} name={rawItem.name} inCart={rawItem.inCart} section={section} handleChangeChecked={handleChangeChecked} handleDelete={handleDelete}></Item>

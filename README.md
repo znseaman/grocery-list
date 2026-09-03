@@ -13,3 +13,7 @@ It's nice to have a list divided into sections of the grocery store so when you 
 3. Remove item from your list
 4. Remove all items
 5. Persist added items to your device in local storage
+6. Add, delete, and rename sections
+7. Remove all sections
+8. Display the number of items in each section
+9. Maintain the active section when dragging an item over a section
